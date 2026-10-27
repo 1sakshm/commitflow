@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { FolderCog, FolderPlus, Info, Moon, Palette, RotateCw, Sun, Trash2, TriangleAlert } from 'lucide-react'
 import { useResource } from '../data'
-import { api, applyTheme, errorInfo } from '../lib'
+import { api, applyTheme, errorInfo, hosted } from '../lib'
 import { useToast } from '../components/Toast'
 import { Badge, Button, Card, CardHeader, GitHubMark, GitHubSetup, IconButton, Modal, PageHeader, Segmented, Skeleton, TextInput } from '../components/ui'
 
@@ -14,7 +14,7 @@ function GitHubSection() {
       <CardHeader
         icon={GitHubMark}
         title="GitHub connection"
-        description="The token lives only in server/.env and is never sent to the browser."
+        description={hosted ? 'GitHub data is loaded by the server. The token is never sent to the browser.' : 'The token lives only in server/.env and is never sent to the browser.'}
         action={
           <Button size="sm" icon={RotateCw} onClick={profile.refresh} loading={profile.loading}>
             Test connection
@@ -42,7 +42,7 @@ function GitHubSection() {
             </a>
           </div>
           <p className="text-xs leading-5 text-subtle sm:max-w-xs sm:text-right">
-            To change accounts, edit GITHUB_TOKEN in server/.env and restart the backend.
+            {hosted ? 'This online version shows public repositories only.' : 'To change accounts, edit GITHUB_TOKEN in server/.env and restart the backend.'}
           </p>
         </div>
       ) : profile.error?.code === 'NOT_CONFIGURED' ? (
@@ -183,6 +183,7 @@ function AppearanceSection() {
     const previous = theme
     setTheme(nextTheme)
     applyTheme(nextTheme)
+    if (hosted) return
     try {
       await api.put('/settings', { theme: nextTheme })
     } catch (error) {
@@ -197,7 +198,7 @@ function AppearanceSection() {
       <CardHeader
         icon={Palette}
         title="Appearance"
-        description="Saved to MongoDB so it is remembered next time."
+        description={hosted ? 'Saved in this browser.' : 'Saved to MongoDB so it is remembered next time.'}
         action={
           <Segmented
             label="Theme"
@@ -234,7 +235,7 @@ function AboutSection() {
         </div>
         <div>
           <dt className="text-xs text-subtle">Runs on</dt>
-          <dd className="mt-1 text-fg">Your computer only (127.0.0.1)</dd>
+          <dd className="mt-1 text-fg">{hosted ? 'Online version (GitHub data only)' : 'Your computer only (127.0.0.1)'}</dd>
         </div>
         <div className="sm:col-span-2">
           <dt className="text-xs text-subtle">Built with</dt>
@@ -255,7 +256,7 @@ export default function Settings() {
       <PageHeader title="Settings" description="Connections, project folders, and preferences" />
       <div className="space-y-5">
         <GitHubSection />
-        <DirectoriesSection />
+        {!hosted && <DirectoriesSection />}
         <AppearanceSection />
         <AboutSection />
       </div>

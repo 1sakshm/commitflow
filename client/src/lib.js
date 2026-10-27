@@ -1,6 +1,12 @@
 import axios from 'axios'
 
-export const api = axios.create({ baseURL: '/api', timeout: 150000 })
+const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
+export const hosted = Boolean(apiOrigin)
+
+export const repositoryUrl = 'https://github.com/1sakshm/commitflow'
+
+export const api = axios.create({ baseURL: `${apiOrigin}/api`, timeout: 150000 })
 
 export function errorInfo(error) {
   if (error.response?.data?.message || (error.response && ![500, 502, 503, 504].includes(error.response.status))) {
@@ -10,7 +16,12 @@ export function errorInfo(error) {
       status: error.response.status
     }
   }
-  return { message: 'Cannot reach the CommitFlow server. Make sure the backend is running on port 5000.', code: 'SERVER_OFFLINE' }
+  return {
+    message: hosted
+      ? 'Cannot reach the CommitFlow server. The free server sleeps when idle and can take up to a minute to wake up. Please try again shortly.'
+      : 'Cannot reach the CommitFlow server. Make sure the backend is running on port 5000.',
+    code: 'SERVER_OFFLINE'
+  }
 }
 
 const timeUnits = [

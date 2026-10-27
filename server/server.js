@@ -11,6 +11,7 @@ dotenv.config({ quiet: true })
 
 const app = express()
 const port = Number(process.env.PORT) || 5000
+const hosted = process.env.HOSTED === 'true'
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/commitflow'
 const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .split(',')
@@ -22,8 +23,20 @@ app.disable('x-powered-by')
 app.use((req, res, next) => {
   const origin = req.get('origin')
   const isLocalHost = ['localhost', '127.0.0.1'].includes(req.hostname)
-  if (!isLocalHost || (origin && !allowedOrigins.includes(origin))) {
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({ message: 'CommitFlow only accepts requests from its own app.' })
+  }
+  if (!hosted && !isLocalHost) {
     return res.status(403).json({ message: 'CommitFlow only accepts requests from the local app.' })
+  }
+  if (origin) {
+    res.set({
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      Vary: 'Origin'
+    })
+    if (req.method === 'OPTIONS') return res.sendStatus(204)
   }
   next()
 })
@@ -33,6 +46,7 @@ app.use(express.json({ limit: '100kb' }))
 app.get('/api/health', async (req, res) => {
   res.json({
     status: 'ok',
+    hosted,
     database: mongoose.connection.readyState === 1,
     git: await gitVersion(),
     githubConfigured: Boolean(process.env.GITHUB_TOKEN) && process.env.GITHUB_TOKEN !== 'your_github_token_here'
@@ -45,6 +59,9 @@ app.get('/api/settings', async (req, res) => {
 })
 
 app.put('/api/settings', async (req, res) => {
+  if (hosted) {
+    return res.status(403).json({ message: 'Settings are read-only in the online version.', code: 'READ_ONLY' })
+  }
   if (!['dark', 'light'].includes(req.body?.theme)) {
     return res.status(400).json({ message: 'Theme must be "dark" or "light".' })
   }
@@ -55,8 +72,14 @@ app.put('/api/settings', async (req, res) => {
 })
 
 app.use('/api/github', githubRoutes)
-app.use('/api/repos', repositoryRoutes)
-app.use('/api/git', gitRoutes)
+if (hosted) {
+  app.use(['/api/repos', '/api/git'], (req, res) => {
+    res.status(403).json({ message: 'Local Git features are only available when CommitFlow runs on your computer.', code: 'LOCAL_ONLY' })
+  })
+} else {
+  app.use('/api/repos', repositoryRoutes)
+  app.use('/api/git', gitRoutes)
+}
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Endpoint not found.' })
@@ -76,8 +99,9 @@ app.use((error, req, res, next) => {
 mongoose
   .connect(mongoUri, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
-    app.listen(port, '127.0.0.1', () => {
-      console.log(`CommitFlow API running at http://127.0.0.1:${port}`)
+    const host = hosted ? '0.0.0.0' : '127.0.0.1'
+    app.listen(port, host, () => {
+      console.log(`CommitFlow API running at http://${host}:${port}${hosted ? ' in hosted mode' : ''}`)
     })
   })
   .catch((error) => {

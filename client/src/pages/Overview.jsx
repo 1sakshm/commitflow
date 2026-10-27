@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { ArrowRight, BookMarked, FilePen, FolderGit2, GitBranch, GitCommitHorizontal, History } from 'lucide-react'
+import { ArrowRight, BookMarked, Code2, FilePen, FolderGit2, GitBranch, GitCommitHorizontal, History, Star } from 'lucide-react'
 import { useResource } from '../data'
-import { dayKey, formatDate, plural, timeAgo } from '../lib'
+import { dayKey, formatDate, hosted, plural, timeAgo } from '../lib'
 import ActivityItem from '../components/ActivityItem'
+import { RunLocally } from './LocalOnly'
 import { Card, CardHeader, EmptyState, ErrorState, GitHubSetup, ListSkeleton, RefreshButton, RepoStatusBadges, Skeleton, StatCard } from '../components/ui'
 
 function buildDailyCounts(commits, days) {
@@ -151,20 +152,24 @@ export default function Overview() {
   const profile = useResource('/github/profile')
   const repos = useResource('/github/repos')
   const activity = useResource('/github/activity?days=30')
-  const local = useResource('/repos', { revalidate: true })
+  const local = useResource(hosted ? null : '/repos', { revalidate: true })
 
   const notConfigured = profile.error?.code === 'NOT_CONFIGURED'
   const localRepositories = local.data?.repositories || []
   const changedProjects = localRepositories.filter((repo) => !repo.error && repo.counts.total > 0)
   const totalChanges = changedProjects.reduce((sum, repo) => sum + repo.counts.total, 0)
   const privateCount = repos.data?.filter((repo) => repo.private).length || 0
+  const totalStars = repos.data?.reduce((sum, repo) => sum + repo.stars, 0) || 0
+  const languageCounts = new Map()
+  for (const repo of repos.data || []) if (repo.language) languageCounts.set(repo.language, (languageCounts.get(repo.language) || 0) + 1)
+  const [topLanguage, topLanguageCount] = [...languageCounts.entries()].sort((first, second) => second[1] - first[1])[0] || []
   const refreshing = profile.loading || repos.loading || activity.loading || local.loading
 
   function refreshAll() {
     profile.refresh()
     repos.refresh()
     activity.refresh()
-    local.refresh()
+    if (!hosted) local.refresh()
   }
 
   return (
@@ -175,7 +180,7 @@ export default function Overview() {
           <p className="mt-1.5 text-sm text-muted">
             {profile.data ? (
               <>
-                Signed in to GitHub as{' '}
+                {hosted ? 'Showing GitHub activity for' : 'Signed in to GitHub as'}{' '}
                 <a href={profile.data.htmlUrl} target="_blank" rel="noreferrer" className="font-medium text-fg hover:text-info">
                   @{profile.data.login}
                 </a>
@@ -205,7 +210,7 @@ export default function Overview() {
           to="/repositories"
           loading={repos.loading && !repos.data}
           value={repos.data ? repos.data.length : '—'}
-          hint={repos.data ? `${repos.data.length - privateCount} public · ${privateCount} private` : 'Unavailable'}
+          hint={repos.data ? (hosted ? 'Public repositories' : `${repos.data.length - privateCount} public · ${privateCount} private`) : 'Unavailable'}
         />
         <StatCard
           icon={GitCommitHorizontal}
@@ -215,27 +220,56 @@ export default function Overview() {
           value={activity.data ? activity.data.commits.length : '—'}
           hint={activity.data ? 'Authored by you · last 30 days' : 'Unavailable'}
         />
-        <StatCard
-          icon={FolderGit2}
-          label="Local projects"
-          to="/projects"
-          loading={local.loading && !local.data}
-          value={local.data ? localRepositories.length : '—'}
-          hint={local.data ? `In ${plural(local.data.directories.length, 'configured folder')}` : 'Unavailable'}
-        />
-        <StatCard
-          icon={FilePen}
-          label="Uncommitted changes"
-          to="/projects"
-          loading={local.loading && !local.data}
-          value={local.data ? totalChanges : '—'}
-          hint={local.data ? (changedProjects.length ? `Across ${plural(changedProjects.length, 'project')}` : 'All projects are clean') : 'Unavailable'}
-        />
+        {hosted ? (
+          <>
+            <StatCard
+              icon={Star}
+              label="Stars earned"
+              to="/repositories"
+              loading={repos.loading && !repos.data}
+              value={repos.data ? totalStars : '—'}
+              hint={repos.data ? 'Across all repositories' : 'Unavailable'}
+            />
+            <StatCard
+              icon={Code2}
+              label="Top language"
+              to="/repositories"
+              loading={repos.loading && !repos.data}
+              value={repos.data ? topLanguage || '—' : '—'}
+              hint={repos.data && topLanguage ? `Used in ${plural(topLanguageCount, 'repository', 'repositories')}` : 'Unavailable'}
+            />
+          </>
+        ) : (
+          <>
+            <StatCard
+              icon={FolderGit2}
+              label="Local projects"
+              to="/projects"
+              loading={local.loading && !local.data}
+              value={local.data ? localRepositories.length : '—'}
+              hint={local.data ? `In ${plural(local.data.directories.length, 'configured folder')}` : 'Unavailable'}
+            />
+            <StatCard
+              icon={FilePen}
+              label="Uncommitted changes"
+              to="/projects"
+              loading={local.loading && !local.data}
+              value={local.data ? totalChanges : '—'}
+              hint={local.data ? (changedProjects.length ? `Across ${plural(changedProjects.length, 'project')}` : 'All projects are clean') : 'Unavailable'}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <ContributionChart activity={activity} />
-        <LocalStatusCard local={local} />
+        {hosted ? (
+          <Card className="flex flex-col justify-center">
+            <RunLocally />
+          </Card>
+        ) : (
+          <LocalStatusCard local={local} />
+        )}
       </div>
 
       <Card>

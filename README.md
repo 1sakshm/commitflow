@@ -162,6 +162,7 @@ cp .env.example .env          # macOS / Linux / Git Bash
 | `GITHUB_TOKEN` | for GitHub pages | `github_pat_...` | Personal access token. Stays on the server only. |
 | `ALLOWED_REPO_DIRS` | no | `C:/Users/You/Projects` | Folders to scan, separated by `,` or `;`. More can be added in Settings. |
 | `CLIENT_ORIGIN` | no | `http://localhost:5173` | The browser origin allowed to call the API. |
+| `HOSTED` | no | `false` | Set to `true` only for the online version (see section 16). |
 
 `.env` is listed in `.gitignore`. Never commit it.
 
@@ -289,3 +290,23 @@ A short walkthrough video is in [docs/demo.mp4](docs/demo.mp4).
 - Publishing a new branch (`push -u`) after explicit confirmation.
 - A per-repository GitHub page with issues and pull requests.
 - Automated tests for the Git service using temporary repositories.
+
+## 16. Online version (Vercel + Render)
+
+CommitFlow can also run online in a **read-only, GitHub-only mode**. The local Git features stay on your own computer, because a cloud server cannot see the repositories on your machine.
+
+| Part | Host | Settings |
+| --- | --- | --- |
+| Frontend | Vercel | Root directory `client`, framework Vite, environment variable `VITE_API_URL` = the Render URL (for example `https://commitflow-api.onrender.com`) |
+| Backend | Render | Created from `render.yaml`. Set `MONGODB_URI`, `GITHUB_TOKEN` and `CLIENT_ORIGIN` (the Vercel URL) in the Render dashboard |
+| Database | MongoDB Atlas | In **Network Access**, allow `0.0.0.0/0` so Render can connect |
+
+When `HOSTED=true` is set on the server:
+- only public repositories are shown, and the Refresh button cannot bypass the 5-minute cache, which protects the GitHub rate limit;
+- the local Git and folder endpoints are switched off and return a "run it locally" message;
+- settings are read-only, and the theme is saved in the visitor's browser;
+- requests are accepted only from the Vercel site (`CLIENT_ORIGIN`).
+
+Use a separate fine-grained GitHub token for the online version, with **Public repositories (read-only)** access only.
+
+On Render's free plan the server sleeps after 15 minutes without visitors, so the first request after a pause can take up to a minute.

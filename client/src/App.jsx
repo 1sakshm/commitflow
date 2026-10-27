@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Compass } from 'lucide-react'
 import { DataProvider } from './data'
-import { api, applyTheme } from './lib'
+import { api, applyTheme, hosted } from './lib'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/Toast'
 import { Button, EmptyState } from './components/ui'
@@ -12,6 +12,7 @@ import LocalProjects from './pages/LocalProjects'
 import ProjectDetail from './pages/ProjectDetail'
 import Activity from './pages/Activity'
 import Settings from './pages/Settings'
+import LocalOnly from './pages/LocalOnly'
 
 function NotFound() {
   return (
@@ -30,6 +31,7 @@ function NotFound() {
 
 export default function App() {
   useEffect(() => {
+    if (hosted) return
     api
       .get('/settings')
       .then((response) => applyTheme(response.data.theme))
@@ -43,8 +45,8 @@ export default function App() {
           <Route element={<Layout />}>
             <Route index element={<Overview />} />
             <Route path="repositories" element={<Repositories />} />
-            <Route path="projects" element={<LocalProjects />} />
-            <Route path="projects/:id" element={<ProjectDetail />} />
+            <Route path="projects" element={hosted ? <LocalOnly /> : <LocalProjects />} />
+            <Route path="projects/:id" element={hosted ? <LocalOnly /> : <ProjectDetail />} />
             <Route path="activity" element={<Activity />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />

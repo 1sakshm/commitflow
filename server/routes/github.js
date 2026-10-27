@@ -6,6 +6,8 @@ const router = Router()
 const cacheDuration = 5 * 60 * 1000
 const cache = new Map()
 const maximumActivityRepositories = 15
+const hosted = () => process.env.HOSTED === 'true'
+const wantsRefresh = (req) => req.query.refresh === '1' && !hosted()
 
 const github = axios.create({
   baseURL: 'https://api.github.com',
@@ -86,36 +88,38 @@ function loadRepositories(refresh) {
       repositories.push(...batch)
       if (batch.length < 100) break
     }
-    return repositories.map((repository) => ({
-      id: repository.id,
-      name: repository.name,
-      fullName: repository.full_name,
-      owner: repository.owner.login,
-      description: repository.description,
-      language: repository.language,
-      stars: repository.stargazers_count,
-      forks: repository.forks_count,
-      private: repository.private,
-      fork: repository.fork,
-      archived: repository.archived,
-      htmlUrl: repository.html_url,
-      updatedAt: repository.updated_at,
-      pushedAt: repository.pushed_at
-    }))
+    return repositories
+      .filter((repository) => !hosted() || !repository.private)
+      .map((repository) => ({
+        id: repository.id,
+        name: repository.name,
+        fullName: repository.full_name,
+        owner: repository.owner.login,
+        description: repository.description,
+        language: repository.language,
+        stars: repository.stargazers_count,
+        forks: repository.forks_count,
+        private: repository.private,
+        fork: repository.fork,
+        archived: repository.archived,
+        htmlUrl: repository.html_url,
+        updatedAt: repository.updated_at,
+        pushedAt: repository.pushed_at
+      }))
   })
 }
 
 router.get('/profile', async (req, res) => {
-  res.json(await loadProfile(req.query.refresh === '1'))
+  res.json(await loadProfile(wantsRefresh(req)))
 })
 
 router.get('/repos', async (req, res) => {
-  res.json(await loadRepositories(req.query.refresh === '1'))
+  res.json(await loadRepositories(wantsRefresh(req)))
 })
 
 router.get('/activity', async (req, res) => {
   const days = [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30
-  const refresh = req.query.refresh === '1'
+  const refresh = wantsRefresh(req)
   const activity = await cached(`activity-${days}`, refresh, async () => {
     const [profile, repositories] = await Promise.all([loadProfile(refresh), loadRepositories(refresh)])
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
