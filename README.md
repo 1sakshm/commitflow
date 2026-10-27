@@ -4,7 +4,11 @@
 
 CommitFlow is a personal developer dashboard that runs on your own computer. It shows your GitHub repositories and recent commits, monitors the Git repositories stored on your machine, and lets you stage, commit, push, pull, fetch and switch branches from a clean web interface instead of the terminal.
 
-**Demo video:** [docs/demo.mp4](docs/demo.mp4) (1 minute 17 seconds, subtitles, no audio)
+## Demo video
+
+https://github.com/user-attachments/assets/12daa94b-fc02-4a18-bd1d-7a02c94305cc
+
+A 1 minute 17 second walkthrough with subtitles and no audio. The file is also in [docs/demo.mp4](docs/demo.mp4).
 
 ---
 
