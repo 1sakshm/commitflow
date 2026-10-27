@@ -4,6 +4,8 @@
 
 CommitFlow is a personal developer dashboard that runs on your own computer. It shows your GitHub repositories and recent commits, monitors the Git repositories stored on your machine, and lets you stage, commit, push, pull, fetch and switch branches from a clean web interface instead of the terminal.
 
+**Live demo:** https://commitflow-seven.vercel.app (online, GitHub-only version. See [section 16](#16-online-version-vercel--render).)
+
 ## Demo video
 
 https://github.com/user-attachments/assets/12daa94b-fc02-4a18-bd1d-7a02c94305cc
@@ -306,6 +308,8 @@ When `HOSTED=true` is set on the server:
 - the local Git and folder endpoints are switched off and return a "run it locally" message;
 - settings are read-only, and the theme is saved in the visitor's browser;
 - requests are accepted only from the Vercel site (`CLIENT_ORIGIN`).
+
+The live version runs at https://commitflow-seven.vercel.app, with the API at https://commitflow-api.onrender.com.
 
 Use a separate fine-grained GitHub token for the online version, with **Public repositories (read-only)** access only.
 
